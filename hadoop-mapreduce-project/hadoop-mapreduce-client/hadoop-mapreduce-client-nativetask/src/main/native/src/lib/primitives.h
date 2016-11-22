@@ -37,6 +37,10 @@
 #define unlikely(x)     (x)
 #endif
 
+#if (defined(__X64) || defined(__x86_64__) || defined(_M_X64))
+#define IS_X86_64 1
+#endif
+
 //#define SIMPLE_MEMCPY
 
 #if !defined(SIMPLE_MEMCPY)
@@ -99,31 +103,33 @@ inline void simple_memcpy(void * dest, const void * src, size_t len) {
 inline uint32_t bswap(uint32_t val) {
 #ifdef __aarch64__
   __asm__("rev %w[dst], %w[src]" : [dst]"=r"(val) : [src]"r"(val));
-#else
-  __asm__("bswap %0" : "=r" (val) : "0" (val));
-#endif
   return val;
+#elif IS_X86_64
+  __asm__("bswap %0" : "=r" (val) : "0" (val));
+  return val;
+#else
+  uint32_t b0 = (val >> 24) & 0xff;
+  uint32_t b1 = (val >> 16) & 0xff;
+  uint32_t b2 = (val >>  8) & 0xff;
+  uint32_t b3 = (val >>  0) & 0xff;
+  return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+#endif
 }
 
 inline uint64_t bswap64(uint64_t val) {
 #ifdef __aarch64__
   __asm__("rev %[dst], %[src]" : [dst]"=r"(val) : [src]"r"(val));
-#else
-#ifdef __X64
+  return val;
+#elif IS_X86_64
   __asm__("bswapq %0" : "=r" (val) : "0" (val));
+  return val;
 #else
-
   uint64_t lower = val & 0xffffffffU;
   uint32_t higher = (val >> 32) & 0xffffffffU;
-
   lower = bswap(lower);
   higher = bswap(higher);
-
   return (lower << 32) + higher;
-
 #endif
-#endif
-  return val;
 }
 
 /**
